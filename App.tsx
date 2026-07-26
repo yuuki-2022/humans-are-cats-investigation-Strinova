@@ -1425,7 +1425,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (safariCompatMode && gameState === 'MENU') return;
-    gameAudio.setMusic('/audio/bgm.mp3', { loop: true });
+    gameAudio.setMusic(`${import.meta.env.BASE_URL}audio/bgm.mp3`, { loop: true });
     const cleanupUnlock = gameAudio.installGestureUnlock();
     return () => {
       cleanupUnlock();

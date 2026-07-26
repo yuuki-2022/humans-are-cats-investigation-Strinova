@@ -546,15 +546,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       gameAudio.preloadSfx();
 
       const withQuality = (src: string, scale: number) => {
+        const publicAssetUrl = src.startsWith('/')
+          ? `${import.meta.env.BASE_URL}${src.slice(1)}`
+          : src;
         try {
-          const url = new URL(src);
+          const url = new URL(publicAssetUrl, window.location.origin);
           const currentW = Number(url.searchParams.get('w') || '');
           const currentH = Number(url.searchParams.get('h') || '');
           if (Number.isFinite(currentW) && currentW > 0) url.searchParams.set('w', String(Math.max(320, Math.round(currentW * scale))));
           if (Number.isFinite(currentH) && currentH > 0) url.searchParams.set('h', String(Math.max(180, Math.round(currentH * scale))));
           return url.toString();
         } catch {
-          return src;
+          return publicAssetUrl;
         }
       };
 

@@ -32,6 +32,10 @@ const clamp01 = (value: number) => {
 
 const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
+const resolvePublicAsset = (src: string) => src.startsWith('/')
+  ? `${import.meta.env.BASE_URL}${src.slice(1)}`
+  : src;
+
 const isNotAllowedError = (error: unknown) => (
   typeof error === 'object'
     && error !== null
@@ -107,10 +111,11 @@ class GameAudioSystem {
 
   registerSfx(urls: Record<string, string>) {
     Object.entries(urls).forEach(([key, src]) => {
+      const resolvedSrc = resolvePublicAsset(src);
       if (!this.sfxTracks.has(key)) {
         this.sfxTracks.set(key, {
           key,
-          src,
+          src: resolvedSrc,
           base: null,
           buffer: null,
           bufferPromise: null,
@@ -119,8 +124,8 @@ class GameAudioSystem {
         });
       } else {
         const track = this.sfxTracks.get(key);
-        if (track && track.src !== src) {
-          track.src = src;
+        if (track && track.src !== resolvedSrc) {
+          track.src = resolvedSrc;
           track.base = null;
           track.buffer = null;
           track.bufferPromise = null;

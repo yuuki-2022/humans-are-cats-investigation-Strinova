@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     process.env.DEEPSEEK_MODEL ||= env.DEEPSEEK_MODEL;
     process.env.DEEPSEEK_BASE_URL ||= env.DEEPSEEK_BASE_URL;
     return {
+      base: process.env.GITHUB_ACTIONS ? '/humans-are-cats-investigation-Strinova/' : '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
