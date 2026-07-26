@@ -1,0 +1,42 @@
+{
+  "name": "humans-are-cats-investigation",
+  "version": "0.0.0",
+  "description": "VOCALOID-themed stealth investigation platformer with a DeepSeek-powered Hatsune Miku NPC.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Lucas-on-the-code/humans-are-cats-investigation.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Lucas-on-the-code/humans-are-cats-investigation/issues"
+  },
+  "homepage": "https://github.com/Lucas-on-the-code/humans-are-cats-investigation#readme",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "build:vocaloid-db": "node scripts/build-biliboard-hot-db.mjs",
+    "preview": "vite preview",
+    "serve": "node server.mjs"
+  },
+  "dependencies": {
+    "@fontsource/space-mono": "^5.2.9",
+    "i18next": "^26.3.6",
+    "i18next-browser-languagedetector": "^8.2.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-i18next": "^17.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
