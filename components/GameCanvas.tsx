@@ -10,6 +10,7 @@ import {
   FLOAT_FALL_SPEED,
   FLOAT_DAMAGE_MULTIPLIER,
   COMBAT,
+  AIKA_CHAT_LINES,
   INTERACTION_QUOTES,
   MIKU_CHAT_OPENING_LINES,
   NPC_SPRITE_URLS,
@@ -28,7 +29,7 @@ import {
   PROJECTILE_SPRITE_URL,
   MEMORY_CRYSTAL_SPRITE_URL,
   ITEM_SPRITE_URLS,
-  RANDOM_NPC_CHAT_LINES,
+  NORA_CHAT_LINES,
   WALK_SPRITE_URLS,
   SCENE_IMAGES,
   IDLE_SPRITE_URLS,
@@ -81,6 +82,7 @@ const DEFAULT_PARTICLE_LIMIT = 220;
 const DEFAULT_PROJECTILE_LIMIT = 60;
 const RUN_START_X = 220;
 const CHUNK_LENGTH = 760;
+const SPECIAL_NPC_MIN_SPACING = CHUNK_LENGTH * 1.25;
 const GENERATE_AHEAD = 2600;
 const CLEAN_BEHIND = 1000;
 const CLEAN_FAR_BEHIND = CHUNK_LENGTH * 8;
@@ -788,7 +790,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const kind = isMiku ? 'miku' : 'random';
     const lineKey = isMiku
       ? pickRandomLine(MIKU_CHAT_OPENING_LINES)
-      : pickRandomLine(RANDOM_NPC_CHAT_LINES);
+      : pickRandomLine(npc.dialogText);
     onNpcChatStart({
       kind,
       speaker: isMiku ? t('npc_miku_name') : t(npc.labelKey),
@@ -797,17 +799,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       image: isMiku ? MIKU_NPC_IMAGE : undefined,
       anchor: getNpcChatAnchor(npc),
       target: { type: 'npc', id: npc.id, kind },
-    });
-  };
-
-  const openPedestrianChat = (pedestrian: DecorativePedestrian) => {
-    const lineKey = pickRandomLine(RANDOM_NPC_CHAT_LINES);
-    onNpcChatStart({
-      kind: 'random',
-      speaker: t('npc_pedestrian'),
-      lines: [t(lineKey)],
-      anchor: getNpcChatAnchor(pedestrian),
-      target: { type: 'pedestrian', id: pedestrian.id, kind: 'random' },
     });
   };
 
@@ -903,7 +894,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     visionHeight: 0,
     maxScanHits: 1,
     labelKey: 'npc_aika_name',
-    dialogText: RANDOM_NPC_CHAT_LINES,
+    dialogText: AIKA_CHAT_LINES,
     chatKind: 'random',
     spriteKey: 'aika_0',
   });
@@ -918,10 +909,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     visionHeight: 0,
     maxScanHits: 1,
     labelKey: 'npc_nora_name',
-    dialogText: RANDOM_NPC_CHAT_LINES,
+    dialogText: NORA_CHAT_LINES,
     chatKind: 'random',
     spriteKey: 'nora_0',
   });
+
+  const addRandomSpecialNpc = (x: number) => {
+    // Chunks are generated far ahead of the camera. Only nearby duplicates count,
+    // otherwise off-screen pre-generated NPCs would prevent all later spawns.
+    const hasAika = npcsRef.current.some((npc) => (
+      npc.spriteKey?.startsWith('aika_') && Math.abs(npc.x - x) < SPECIAL_NPC_MIN_SPACING
+    ));
+    const hasNora = npcsRef.current.some((npc) => (
+      npc.spriteKey?.startsWith('nora_') && Math.abs(npc.x - x) < SPECIAL_NPC_MIN_SPACING
+    ));
+    const candidates = [
+      ...(!hasAika ? [makeAikaNpc] : []),
+      ...(!hasNora ? [makeNoraNpc] : []),
+    ];
+    const createNpc = candidates[Math.floor(Math.random() * candidates.length)];
+    if (createNpc) npcsRef.current.push(createNpc(x));
+  };
 
   const addPickup = (x: number, y: number, type: Item['type']) => {
     itemsRef.current.push({ id: nextId(), x, y, width: 30, height: 30, type, collected: false, floatOffset: 0 });
@@ -1099,11 +1107,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       build: (index, startX) => {
         addPickupLine(startX + 90, GROUND_COIN_Y, 5, 50);
         addPickupArc(startX + 365, GROUND_COIN_Y, 4, 54, 56);
-        if (index >= 2 && index % 2 === 0) {
-          // The first recovery segment is guaranteed, so place Aika there.
-          // Later recovery segments alternate her with Nora.
-          npcsRef.current.push(index % 4 === 2 ? makeAikaNpc(startX + 575) : makeNoraNpc(startX + 575));
-        }
+        if (index >= 2) addRandomSpecialNpc(startX + 575);
         addPickup(startX + 690, GROUND_COIN_Y, index % 3 === 0 ? 'HEALTH' : 'FISH');
       },
     },
@@ -1926,17 +1930,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           openNpcChat(talkNpc);
           return;
         }
-        const talkPedestrian = pedestriansRef.current
-          .filter((ped) => rectsOverlap(playerHitbox, getNpcTalkZone(ped)))
-          .sort((a, b) => Math.abs(a.x + a.width / 2 - (p.x + p.width / 2)) - Math.abs(b.x + b.width / 2 - (p.x + p.width / 2)))[0];
-        if (talkPedestrian) {
-          p.vx = 0;
-          p.isFloating = false;
-          p.isSliding = false;
-          addFloatingText(t('float_talk'), talkPedestrian.x + talkPedestrian.width / 2, talkPedestrian.y - 34, '#9ee6ff', 16);
-          openPedestrianChat(talkPedestrian);
-          return;
-        }
       }
 
       const previousDistance = stats.distance;
@@ -2315,7 +2308,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           : n.spriteKey.startsWith('decor_npc_v2_')
           ? `decor_npc_v2_${Math.floor(now / 180) % 2}`
           : n.spriteKey.startsWith('decor_npc_')
-            ? `decor_npc_${Math.floor(now / 130) % 4}`
+            ? `decor_npc_${Math.floor(now / 180) % 2}`
             : n.spriteKey;
         ctx.save();
         const isNora = n.spriteKey.startsWith('nora_');
@@ -2422,7 +2415,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             drawDropShadow(ped.x, ped.y, ped.width, ped.height);
           }
         }
-        const frameCount = ped.spriteSet === 'npc' ? 4 : 2;
+        const frameCount = 2;
         const frame = Math.floor((now + ped.frameOffset) / 180) % frameCount;
         const spriteKey = ped.spriteSet === 'npc' ? `decor_npc_${frame}` : `decor_npc_v2_${frame}`;
         ctx.save();
@@ -2431,14 +2424,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (ped.vx > 0) ctx.scale(-1, 1);
         drawImageSafe(spriteKey, -ped.width / 2, -ped.height / 2, ped.width, ped.height);
         ctx.restore();
-        if (rectsOverlap(getPlayerHitbox(), getNpcTalkZone(ped))) {
-          ctx.save();
-          ctx.textAlign = 'center';
-          ctx.font = 'bold 12px "Space Mono", monospace';
-          ctx.fillStyle = '#9ee6ff';
-          ctx.fillText(t('prompt_talk_e'), ped.x + ped.width / 2, ped.y - 14 + Math.sin(now / 180) * 3);
-          ctx.restore();
-        }
       });
 
       platformsRef.current.forEach((plat) => {

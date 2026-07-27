@@ -127,6 +127,20 @@ const resources = {
       npc_chat_line_6: '不要相信会转圈的招牌，它知道太多了。',
       npc_chat_line_7: '猫可能没有变多，只是世界变小了。',
 
+      // 艾卡专属对话
+      npc_aika_chat_0: '剪刀手志愿成员艾卡，我的名字只交予最信赖的人。',
+      npc_aika_chat_1: '他们说，这枚面具可以保护我，不管是在什么时候。',
+      npc_aika_chat_2: '我就是照亮普雷顿之心的火焰。',
+      npc_aika_chat_3: '我到底是谁？只是路过的女高——高、高手罢了，不用记了。',
+      npc_aika_chat_4: '我就是——无敌的女高中生！这次就记好吧！',
+
+      // 诺诺专属对话
+      npc_nora_chat_0: '我叫夜守诺，是一个能调动超自然力量的咒术师。',
+      npc_nora_chat_1: '放心，这对我来说不足为惧。',
+      npc_nora_chat_2: '念灵召请，破邪显正！',
+      npc_nora_chat_3: '心神合一，术法自明。',
+      npc_nora_chat_4: '唤山敬神，散影！',
+
       // 初音未来开场白
       miku_opening_0: '你好，我是初音未来。要一起聊聊天吗？',
       miku_opening_1: '我刚好想休息一下，要不要一起说说话？',
@@ -320,6 +334,18 @@ const resources = {
       npc_chat_line_6: "Don't trust spinning signs, they know too much.",
       npc_chat_line_7: "Maybe the cats haven't multiplied, the world just got smaller.",
 
+      npc_aika_chat_0: 'Scissorhands volunteer Aika—my name belongs only to those I trust most.',
+      npc_aika_chat_1: 'They say this mask can protect me, no matter when.',
+      npc_aika_chat_2: 'I am the flame that lights the heart of Preton.',
+      npc_aika_chat_3: 'Who am I? Just a passing high-school—high, high-level expert. No need to remember it.',
+      npc_aika_chat_4: 'I am—the invincible high school girl! Remember it this time!',
+
+      npc_nora_chat_0: 'My name is Yeshou Nuo, a sorcerer who can command supernatural power.',
+      npc_nora_chat_1: 'Don’t worry. This is nothing to me.',
+      npc_nora_chat_2: 'Spirit invocation, reveal righteousness and banish evil!',
+      npc_nora_chat_3: 'Mind and spirit as one; the art reveals itself.',
+      npc_nora_chat_4: 'Honor the mountains and gods—disperse, shadow!',
+
       miku_opening_0: "Hello, I'm Hatsune Miku. Would you like to chat?",
       miku_opening_1: 'I was just about to take a break. Want to talk?',
       miku_opening_2: 'If you like, we can stand here and chat for a bit.',
@@ -508,6 +534,18 @@ const resources = {
       npc_chat_line_5: 'さっきタクシーに小銭を貸してほしいって言われた。',
       npc_chat_line_6: '回る看板を信じちゃだめだ、あれは色々知りすぎている。',
       npc_chat_line_7: '猫が増えたんじゃなくて、世界が小さくなったのかもね。',
+
+      npc_aika_chat_0: 'シザーハンズの志願メンバー、アイカ。私の名前は最も信頼する人にだけ明かすの。',
+      npc_aika_chat_1: 'この仮面は、いつでも私を守ってくれるって言われている。',
+      npc_aika_chat_2: '私はプレトンの心を照らす炎。',
+      npc_aika_chat_3: '私は誰？ 通りすがりの女子高——こう、高レベルの達人よ。覚えなくていいわ。',
+      npc_aika_chat_4: '私は——無敵の女子高生！ 今度こそ覚えてね！',
+
+      npc_nora_chat_0: '私は夜守ノ、超自然の力を操る呪術師。',
+      npc_nora_chat_1: '安心して。私にとっては恐れるほどのことじゃない。',
+      npc_nora_chat_2: '念霊召請、破邪顕正！',
+      npc_nora_chat_3: '心神合一、術法自明。',
+      npc_nora_chat_4: '山を呼び神を敬え、散影！',
 
       miku_opening_0: 'こんにちは、初音ミクです。一緒にお話しませんか？',
       miku_opening_1: 'ちょうど休憩しようと思ってたんです。少し話しませんか？',

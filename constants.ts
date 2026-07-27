@@ -85,6 +85,23 @@ export const RANDOM_NPC_CHAT_LINES = [
   "npc_chat_line_7",
 ];
 
+// 艾卡与诺诺专属对话 – 每个元素是 i18n key
+export const AIKA_CHAT_LINES = [
+  "npc_aika_chat_0",
+  "npc_aika_chat_1",
+  "npc_aika_chat_2",
+  "npc_aika_chat_3",
+  "npc_aika_chat_4",
+];
+
+export const NORA_CHAT_LINES = [
+  "npc_nora_chat_0",
+  "npc_nora_chat_1",
+  "npc_nora_chat_2",
+  "npc_nora_chat_3",
+  "npc_nora_chat_4",
+];
+
 // 初音未来开场白 – i18n key
 export const MIKU_CHAT_OPENING_LINES = [
   "miku_opening_0",
@@ -140,8 +157,6 @@ export const WALK_SPRITE_URLS = [
 export const NPC_SPRITE_URLS = [
   "/sprites/npc/npc_0.png",
   "/sprites/npc/npc_1.png",
-  "/sprites/npc/npc_2.png",
-  "/sprites/npc/npc_3.png",
 ];
 
 export const NPC_VARIANT_2_URLS = [
