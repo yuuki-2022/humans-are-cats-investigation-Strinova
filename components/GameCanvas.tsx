@@ -2313,7 +2313,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           : n.spriteKey.startsWith('nora_')
           ? `nora_${Math.floor(now / 180) % 2}`
           : n.spriteKey.startsWith('decor_npc_v2_')
-          ? `decor_npc_v2_${Math.floor(now / 130) % 8}`
+          ? `decor_npc_v2_${Math.floor(now / 180) % 2}`
           : n.spriteKey.startsWith('decor_npc_')
             ? `decor_npc_${Math.floor(now / 130) % 4}`
             : n.spriteKey;
@@ -2422,8 +2422,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             drawDropShadow(ped.x, ped.y, ped.width, ped.height);
           }
         }
-        const frameCount = ped.spriteSet === 'npc' ? 4 : 8;
-        const frame = Math.floor((now + ped.frameOffset) / 130) % frameCount;
+        const frameCount = ped.spriteSet === 'npc' ? 4 : 2;
+        const frame = Math.floor((now + ped.frameOffset) / 180) % frameCount;
         const spriteKey = ped.spriteSet === 'npc' ? `decor_npc_${frame}` : `decor_npc_v2_${frame}`;
         ctx.save();
         ctx.globalAlpha = 0.88;

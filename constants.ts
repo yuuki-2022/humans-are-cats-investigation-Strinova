@@ -147,12 +147,6 @@ export const NPC_SPRITE_URLS = [
 export const NPC_VARIANT_2_URLS = [
   "/sprites/npc_v2/npc_v2_0.png",
   "/sprites/npc_v2/npc_v2_1.png",
-  "/sprites/npc_v2/npc_v2_2.png",
-  "/sprites/npc_v2/npc_v2_3.png",
-  "/sprites/npc_v2/npc_v2_4.png",
-  "/sprites/npc_v2/npc_v2_5.png",
-  "/sprites/npc_v2/npc_v2_6.png",
-  "/sprites/npc_v2/npc_v2_7.png",
 ];
 
 export const LILITH_SPRITE_URLS = [
