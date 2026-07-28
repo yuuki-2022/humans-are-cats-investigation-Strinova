@@ -91,6 +91,10 @@ export interface NPC extends Entity {
   spriteKey?: string;
 }
 
+export type KeyBindingAction = 'moveLeft' | 'moveRight' | 'jump' | 'slide' | 'float' | 'attack' | 'interact';
+
+export type KeyBindings = Record<KeyBindingAction, string[]>;
+
 export interface Platform extends Position {
   width: number;
   height: number;

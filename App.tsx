@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { DialogBox } from './components/DialogBox';
-import { GameState, LeaderboardEntry, NpcChatSession, RunSummary, TouchInput } from './types';
-import { LYRICS, IDLE_SPRITE_URLS } from './constants';
+import { GameState, KeyBindingAction, KeyBindings, LeaderboardEntry, NpcChatSession, RunSummary, TouchInput } from './types';
+import { DEFAULT_KEY_BINDINGS, LYRICS, IDLE_SPRITE_URLS } from './constants';
 import { gameAudio } from './utils/audioSystem';
 import { useTranslation } from 'react-i18next';
 import './i18n';
@@ -19,15 +19,46 @@ import {
 } from './utils/mikuMemory';
 import type { MikuMemoryEndResult } from './utils/mikuMemory';
 
-const languages = [
-  { code: 'zh', labelKey: 'lang_zh' },
-  { code: 'en', labelKey: 'lang_en' },
-  { code: 'ja', labelKey: 'lang_ja' },
-] as const;
-
-type LanguageCode = typeof languages[number]['code'];
-
 const AUTH_TOKEN_KEY = 'cat_investigation_auth_token_v1';
+const KEY_BINDINGS_STORAGE_KEY = 'cat_investigation_key_bindings_v1';
+type SettingsTab = 'volume' | 'keybind' | 'credits';
+const KEY_BINDING_ACTIONS: Array<{ action: KeyBindingAction; labelKey: string }> = [
+  { action: 'moveLeft', labelKey: 'keybind_move_left' },
+  { action: 'moveRight', labelKey: 'keybind_move_right' },
+  { action: 'jump', labelKey: 'keybind_jump' },
+  { action: 'slide', labelKey: 'keybind_slide' },
+  { action: 'float', labelKey: 'keybind_float' },
+  { action: 'attack', labelKey: 'keybind_attack' },
+  { action: 'interact', labelKey: 'keybind_interact' },
+];
+
+const cloneDefaultKeyBindings = (): KeyBindings => Object.fromEntries(
+  Object.entries(DEFAULT_KEY_BINDINGS).map(([action, keys]) => [action, [...keys]])
+) as KeyBindings;
+
+const loadKeyBindings = (): KeyBindings => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY_BINDINGS_STORAGE_KEY) ?? '') as Partial<KeyBindings>;
+    const defaults = cloneDefaultKeyBindings();
+    KEY_BINDING_ACTIONS.forEach(({ action }) => {
+      if (Array.isArray(saved[action]) && saved[action]?.every((key) => typeof key === 'string')) {
+        defaults[action] = saved[action] as string[];
+      }
+    });
+    return defaults;
+  } catch {
+    return cloneDefaultKeyBindings();
+  }
+};
+
+const formatKeyLabel = (key: string) => ({
+  arrowleft: '←',
+  arrowright: '→',
+  arrowup: '↑',
+  arrowdown: '↓',
+  ' ': '空格',
+  shift: 'Shift',
+}[key] ?? key.toUpperCase());
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -1158,11 +1189,13 @@ const App: React.FC = () => {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadAttemptedRunToken, setUploadAttemptedRunToken] = useState<string | null>(null);
   const [masterVolume, setMasterVolume] = useState<number>(0.5);
-  const [bloomStrength, setBloomStrength] = useState<number>(1.5);
   const [sfxVolume, setSfxVolume] = useState<number>(0.35);
   const [musicVolume, setMusicVolume] = useState<number>(0.3);
   const [isRunMusicReady, setIsRunMusicReady] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('volume');
+  const [keyBindings, setKeyBindings] = useState<KeyBindings>(loadKeyBindings);
+  const [bindingToCapture, setBindingToCapture] = useState<{ action: KeyBindingAction; index: number } | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [activeNpcChat, setActiveNpcChat] = useState<ActiveNpcChat | null>(null);
   const [dismissedMikuIds, setDismissedMikuIds] = useState<Set<number>>(() => new Set());
@@ -1178,22 +1211,51 @@ const App: React.FC = () => {
 
   const touchInputRef = useRef<TouchInput>({ left: false, right: false, up: false, down: false, action: false, attack: false, interact: false, float: false });
 
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const detectedLanguage = (i18n.resolvedLanguage || i18n.language || 'zh').split('-')[0];
-  const currentLang: LanguageCode = languages.some((lang) => lang.code === detectedLanguage)
-    ? detectedLanguage as LanguageCode
-    : 'zh';
-  const currentLangLabel = t(languages.find((lang) => lang.code === currentLang)?.labelKey || 'lang_zh');
-
-  const handleSelect = (code: LanguageCode) => {
-    void i18n.changeLanguage(code);
-    setIsOpen(false);
-  };
+  const currentLang = ['zh', 'en', 'ja'].includes(detectedLanguage) ? detectedLanguage : 'zh';
 
   useEffect(() => {
     document.documentElement.lang = currentLang;
   }, [currentLang]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(KEY_BINDINGS_STORAGE_KEY, JSON.stringify(keyBindings));
+    } catch {
+      // Saving controls is optional when browser storage is unavailable.
+    }
+  }, [keyBindings]);
+
+  useEffect(() => {
+    if (!bindingToCapture) return;
+    const handleKeyCapture = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setBindingToCapture(null);
+        return;
+      }
+      if (event.key === 'Meta' || event.key === 'Control' || event.key === 'Alt') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const nextKey = event.key.toLowerCase();
+      setKeyBindings((current) => {
+        const next = Object.fromEntries(
+          Object.entries(current).map(([action, keys]) => [action, [...keys]])
+        ) as KeyBindings;
+        const previousKey = next[bindingToCapture.action][bindingToCapture.index];
+        for (const { action } of KEY_BINDING_ACTIONS) {
+          const duplicateIndex = next[action].indexOf(nextKey);
+          if (duplicateIndex >= 0) next[action][duplicateIndex] = previousKey;
+        }
+        next[bindingToCapture.action][bindingToCapture.index] = nextKey;
+        return next;
+      });
+      setBindingToCapture(null);
+    };
+    window.addEventListener('keydown', handleKeyCapture, true);
+    return () => window.removeEventListener('keydown', handleKeyCapture, true);
+  }, [bindingToCapture]);
 
   const authHeaders = (extra: Record<string, string> = {}) => ({
     ...extra,
@@ -1815,23 +1877,6 @@ const App: React.FC = () => {
     };
   }, [canAutoHideCursor]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
-
   const displayedGlobalLeaderboard = globalLeaderboard.slice(0, 50);
   const viewerIsInTopList = !!viewerLeaderboardEntry && displayedGlobalLeaderboard.some((entry) => entry.id === viewerLeaderboardEntry.id);
   const shouldMountGameCanvas = gameState !== 'MENU';
@@ -1843,74 +1888,101 @@ const App: React.FC = () => {
 
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/90 p-4">
-          <div className="game-panel-strong p-6 md:p-8 rounded-lg w-full max-w-sm text-white">
+          <div className="game-panel-strong max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6 text-white md:p-8">
             <h2 className="text-2xl font-bold mb-7 pixel-font text-center text-cyan-200">{t('settings_title')}</h2>
-            <div className="mb-7">
-              <label className="text-slate-300 text-sm font-bold mb-3 flex justify-between">
-                <span>{t('master_volume')}</span>
-                <span className="text-cyan-400">{Math.round(masterVolume * 100)}%</span>
-              </label>
-              <input type="range" min="0" max="1" step="0.05" value={masterVolume} onChange={(e) => setMasterVolume(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" />
+            <div className="mb-6 grid grid-cols-3 border-b border-cyan-300/25">
+              {([
+                ['volume', '音量'],
+                ['keybind', '键位'],
+                ['credits', '制作'],
+              ] as const).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => { setBindingToCapture(null); setSettingsTab(tab); }}
+                  className={`border-b-2 px-2 py-3 text-base font-bold transition-colors ${settingsTab === tab ? 'border-cyan-300 text-cyan-200' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <div className="mb-7">
-              <label className="text-slate-300 text-sm font-bold mb-3 flex justify-between">
-                <span>{t('sfx_volume')}</span>
-                <span className="text-cyan-400">{Math.round(sfxVolume * 100)}%</span>
-              </label>
-              <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={(e) => setSfxVolume(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" />
-            </div>
+
+            {settingsTab === 'volume' && (
+              <div className="mb-8 space-y-7">
+                <div>
+                  <label className="mb-3 flex justify-between text-sm font-bold text-slate-300">
+                    <span>{t('master_volume')}</span>
+                    <span className="text-cyan-400">{Math.round(masterVolume * 100)}%</span>
+                  </label>
+                  <input type="range" min="0" max="1" step="0.05" value={masterVolume} onChange={(e) => setMasterVolume(parseFloat(e.target.value))} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-cyan-400" />
+                </div>
+                <div>
+                  <label className="mb-3 flex justify-between text-sm font-bold text-slate-300">
+                    <span>{t('sfx_volume')}</span>
+                    <span className="text-cyan-400">{Math.round(sfxVolume * 100)}%</span>
+                  </label>
+                  <input type="range" min="0" max="1" step="0.05" value={sfxVolume} onChange={(e) => setSfxVolume(parseFloat(e.target.value))} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-cyan-400" />
+                </div>
+                <div>
+                  <label className="mb-3 flex justify-between text-sm font-bold text-slate-300">
+                    <span>{t('music_volume')}</span>
+                    <span className="text-cyan-400">{Math.round(musicVolume * 100)}%</span>
+                  </label>
+                  <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => setMusicVolume(parseFloat(e.target.value))} className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-700 accent-cyan-400" />
+                </div>
+              </div>
+            )}
+
+            {settingsTab === 'keybind' && (
             <div className="mb-8">
-              <label className="text-slate-300 text-sm font-bold mb-3 flex justify-between">
-                <span>{t('music_volume')}</span>
-                <span className="text-cyan-400">{Math.round(musicVolume * 100)}%</span>
-              </label>
-              <input type="range" min="0" max="1" step="0.05" value={musicVolume} onChange={(e) => setMusicVolume(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" />
-            </div>
-            <div className="mb-8">
-              <label className="text-slate-300 text-sm font-bold mb-3 flex justify-between">
-                <span>{t('bloom_strength')}</span>
-                <span className="text-cyan-400">{bloomStrength.toFixed(1)}</span>
-              </label>
-              <input type="range" min="0.5" max="3.0" step="0.1" value={bloomStrength} onChange={(e) => setBloomStrength(parseFloat(e.target.value))} className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-400" />
-            </div>
-            <div className="mb-8">
-              <label className="text-slate-300 text-sm font-bold mb-3 flex justify-between">
-                <span>{t('language_label')}</span>
-              </label>
-              <div className="relative w-full" ref={menuRef}>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-200">{t('keybind_title')}</span>
                 <button
                   type="button"
-                  className="lang-select-trigger"
-                  aria-haspopup="listbox"
-                  aria-expanded={isOpen}
-                  onClick={() => setIsOpen((open) => !open)}
+                  onClick={() => setKeyBindings(cloneDefaultKeyBindings())}
+                  className="text-xs text-cyan-300 transition-colors hover:text-cyan-100"
                 >
-                  <span>{currentLangLabel}</span>
-                  <span aria-hidden="true" className={`lang-select-arrow ${isOpen ? 'open' : ''}`} />
+                  {t('keybind_reset')}
                 </button>
-                {isOpen && (
-                  <ul className="lang-select-menu" role="listbox" aria-label={t('language_label')}>
-                    {languages.map((lang) => {
-                      const isActive = currentLang === lang.code;
-                      return (
-                        <li key={lang.code} role="none">
+              </div>
+              <p className="mb-3 text-xs leading-relaxed text-slate-400">
+                {bindingToCapture ? t('keybind_waiting') : t('keybind_hint')}
+              </p>
+              <div className="space-y-2">
+                {KEY_BINDING_ACTIONS.map(({ action, labelKey }) => (
+                  <div key={action} className="flex items-center justify-between gap-3 rounded border border-slate-700/80 bg-slate-900/45 px-3 py-2">
+                    <span className="text-sm text-slate-200">{t(labelKey)}</span>
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      {keyBindings[action].map((key, index) => {
+                        const isCapturing = bindingToCapture?.action === action && bindingToCapture.index === index;
+                        return (
                           <button
+                            key={`${action}-${index}`}
                             type="button"
-                            role="option"
-                            aria-selected={isActive}
-                            className={`lang-select-item ${isActive ? 'active' : ''}`}
-                            onClick={() => handleSelect(lang.code)}
+                            onClick={() => setBindingToCapture({ action, index })}
+                            className={`min-w-9 rounded border px-2 py-1 text-xs font-bold transition-colors ${isCapturing ? 'border-yellow-300 bg-yellow-300/20 text-yellow-100 animate-pulse' : 'border-cyan-400/55 bg-cyan-950/45 text-cyan-100 hover:border-cyan-200'}`}
                           >
-                            {t(lang.labelKey)}
+                            {isCapturing ? '…' : formatKeyLabel(key)}
                           </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <button onClick={() => setIsSettingsOpen(false)} className="w-full py-3 game-button text-white font-bold rounded-md text-sm">{t('confirm_return')}</button>
+            )}
+
+            {settingsTab === 'credits' && (
+              <div className="mb-8 space-y-4 rounded border border-cyan-300/20 bg-slate-950/35 p-5 text-sm leading-7 text-slate-200">
+                <p>网站制作者：优姬在睡觉/chatGPT</p>
+                <p>原作者：张卡斯</p>
+                <p>绘画素材：尝试重新连接</p>
+                <p>给我提供额度的大佬：丹提诺艾</p>
+                <p>帮我解答问题的大佬：冀酱</p>
+              </div>
+            )}
+            <button onClick={() => { setBindingToCapture(null); setIsSettingsOpen(false); }} className="w-full py-3 game-button text-white font-bold rounded-md text-sm">{t('confirm_return')}</button>
           </div>
         </div>
       )}
@@ -1933,7 +2005,9 @@ const App: React.FC = () => {
           dismissedMikuIds={dismissedMikuIds}
           onNpcChatAnchorChange={updateNpcChatAnchor}
           masterVolume={masterVolume} sfxVolume={sfxVolume} touchInputRef={touchInputRef}
-          bloomStrength={bloomStrength}
+          bloomStrength={0}
+          keyBindings={keyBindings}
+          inputLocked={isSettingsOpen}
         />
       </div>
       )}

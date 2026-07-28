@@ -34,6 +34,7 @@ import {
   SCENE_IMAGES,
   IDLE_SPRITE_URLS,
   AUDIO_URLS,
+  DEFAULT_KEY_BINDINGS,
 } from '../constants';
 import {
   GameState,
@@ -50,6 +51,7 @@ import {
   RunSummary,
   NpcChatSession,
   NpcChatTarget,
+  KeyBindings,
 } from '../types';
 import { gameAudio } from '../utils/audioSystem';
 
@@ -70,6 +72,8 @@ interface GameCanvasProps {
   sfxVolume: number;
   touchInputRef: React.MutableRefObject<TouchInput>;
   bloomStrength: number;
+  keyBindings?: KeyBindings;
+  inputLocked?: boolean;
 }
 
 const BASE_HEIGHT = 600;
@@ -371,6 +375,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   sfxVolume,
   touchInputRef,
   bloomStrength,
+  keyBindings = DEFAULT_KEY_BINDINGS,
+  inputLocked = false,
 }) => {
   const { t: activeTranslation } = useTranslation();
   const translationRef = useRef(activeTranslation);
@@ -407,6 +413,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const cameraRef = useRef({ x: 0, y: 0 });
   const gameStateRef = useRef<GameState>(gameState);
   const keysRef = useRef<{ [key: string]: boolean }>({});
+  const keyBindingsRef = useRef<KeyBindings>(keyBindings);
+  keyBindingsRef.current = keyBindings;
   const statsRef = useRef<RunStats>(emptyStats());
   const nextChunkXRef = useRef(620);
   const leftAirWallXRef = useRef(RUN_START_X - 120);
@@ -1389,8 +1397,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [gameState]);
 
   useEffect(() => {
+    if (inputLocked) clearInputState(true);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isTypingTarget(e.target)) return;
+      if (inputLocked || isTypingTarget(e.target)) return;
       if (e.metaKey || e.ctrlKey || e.altKey || e.key === 'Meta' || e.key === 'Control' || e.key === 'Alt') {
         clearInputState(true);
         return;
@@ -1426,7 +1435,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('focusin', handleFocusIn);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [gameState]);
+  }, [gameState, inputLocked]);
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
@@ -1454,12 +1463,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     // Keep the player art at its native aspect ratio.  The collision box stays
     // fixed, so replacing animation frames cannot change game physics.
-    const drawPlayerSprite = (imgKey: string, top: number, height: number, fallbackWidth: number) => {
+    const getPlayerSpriteWidth = (imgKey: string, height: number, fallbackWidth: number) => {
       const asset = imagesRef.current[imgKey];
       const { width: sourceWidth, height: sourceHeight } = asset ? getAssetSize(asset) : { width: 0, height: 0 };
-      const width = sourceWidth > 0 && sourceHeight > 0
+      return sourceWidth > 0 && sourceHeight > 0
         ? height * (sourceWidth / sourceHeight)
         : fallbackWidth;
+    };
+    const drawPlayerSprite = (imgKey: string, top: number, height: number, fallbackWidth: number, widthOverride?: number) => {
+      const width = widthOverride ?? getPlayerSpriteWidth(imgKey, height, fallbackWidth);
       drawImageSafe(imgKey, -width / 2, top, width, height);
     };
 
@@ -1724,13 +1736,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       spawnRandomTraffic(now);
 
       const isTextInputActive = isTypingTarget(document.activeElement);
-      const jumpPressed = !isTextInputActive && (keys['arrowup'] || keys['w'] || keys[' '] || touch.up);
-      const slidePressed = !isTextInputActive && (keys['arrowdown'] || keys['s'] || touch.down);
-      const floatPressed = !isTextInputActive && (keys['shift'] || touch.float);
-      const interactPressed = !isTextInputActive && (keys['e'] || touch.interact);
+      const isBoundKeyPressed = (action: keyof KeyBindings) => keyBindingsRef.current[action].some((key) => keys[key]);
+      const jumpPressed = !isTextInputActive && (isBoundKeyPressed('jump') || touch.up);
+      const slidePressed = !isTextInputActive && (isBoundKeyPressed('slide') || touch.down);
+      const floatPressed = !isTextInputActive && (isBoundKeyPressed('float') || touch.float);
+      const interactPressed = !isTextInputActive && (isBoundKeyPressed('interact') || touch.interact);
       const pointerAction = pointerActionRef.current;
       pointerActionRef.current = false;
-      const actionPressed = !isTextInputActive && (keys['f'] || touch.action || touch.attack || pointerAction);
+      const actionPressed = !isTextInputActive && (isBoundKeyPressed('attack') || touch.action || touch.attack || pointerAction);
       const jumpEdge = jumpPressed && !prevJumpRef.current;
       const actionEdge = actionPressed && !prevActionRef.current;
       const interactEdge = interactPressed && !prevInteractRef.current;
@@ -1789,7 +1802,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         playSound('JUMP');
       }
 
-      const horizontalInput = isTextInputActive ? 0 : (keys['arrowright'] || keys['d'] || touch.right ? 1 : 0) - (keys['arrowleft'] || keys['a'] || touch.left ? 1 : 0);
+      const horizontalInput = isTextInputActive ? 0 : (isBoundKeyPressed('moveRight') || touch.right ? 1 : 0) - (isBoundKeyPressed('moveLeft') || touch.left ? 1 : 0);
       if (horizontalInput !== 0) p.direction = horizontalInput > 0 ? 1 : -1;
       const isFloatMoving = p.isFloating && !p.isGrounded;
       const movementAccel = isFloatMoving ? MANUAL_ACCEL * 1.12 : MANUAL_ACCEL;
@@ -2669,7 +2682,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             : Math.abs(pl.vx) > 0.5
             ? `walk_${Math.floor(now / 80) % 8}`
             : `idle_${Math.floor(now / 200) % 4}`;
-          if (pl.isSliding) drawPlayerSprite(frame, -pl.height / 2 + 22, pl.height * 0.65, pl.width);
+          if (pl.isSliding) {
+            const slideHeight = pl.height * 0.65;
+            const standingWidth = getPlayerSpriteWidth(frame, pl.height, pl.width);
+            // Keep the feet planted and only compress vertically: crouching should
+            // look like a squat, not like the character was scaled down.
+            drawPlayerSprite(frame, pl.height / 2 - slideHeight, slideHeight, pl.width, standingWidth);
+          }
           else if (pl.isFloating) {
             const floatHeight = pl.height * 0.84;
             drawPlayerSprite(frame, -floatHeight / 2, floatHeight, pl.width);

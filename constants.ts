@@ -1,3 +1,5 @@
+import type { KeyBindings } from './types';
+
 export const GRAVITY = 0.6;
 export const JUMP_FORCE = -13.5;
 export const MOVE_SPEED = 6;
@@ -244,4 +246,14 @@ export const AUDIO_URLS = {
   jump: "/audio/jump_remote.mp3",
   dash: "/audio/dash.mp3",
   collect: "/audio/data.mp3",
+};
+
+export const DEFAULT_KEY_BINDINGS: KeyBindings = {
+  moveLeft: ['arrowleft', 'a'],
+  moveRight: ['arrowright', 'd'],
+  jump: ['arrowup', 'w', ' '],
+  slide: ['arrowdown', 's'],
+  float: ['shift'],
+  attack: ['f'],
+  interact: ['e'],
 };
